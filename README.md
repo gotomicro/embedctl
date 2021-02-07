@@ -5,7 +5,7 @@
 
 ## 安装
 ```go
-go install github.com/gotomicro/embedctl
+go install github.com/gotomicro/embedctl@latest
 ```
 
 ## 运行
