@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gotomicro/embedctl/ant"
 	"github.com/gotomicro/embedctl/simple"
-	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -36,7 +35,7 @@ func main() {
 	// 设置路由
 	{
 		// 设置ant design的路径，在config.ts里配置
-		handler.StaticFS("/ant/", webuiAntObj)
+		handler.StaticFS("/ant/", http.FS(webuiAntObj))
 		// 访问首页跳转到ant design的welcome页面
 		handler.GET("/", func(ctx *gin.Context) {
 			ctx.Redirect(302, "/welcome")
@@ -44,7 +43,7 @@ func main() {
 		})
 		// Ant Design前端访问，try file到index.html
 		handler.GET("/welcome", func(context *gin.Context) {
-			context.FileFromFS("/welcome", webuiAntIndexObj)
+			context.FileFromFS("/welcome", http.FS(webuiAntIndexObj))
 		})
 
 		// 设置hello world
@@ -54,7 +53,7 @@ func main() {
 		})
 
 		// 设置简单的演示静态资源
-		handler.StaticFS("/webui/", webuiSimpleObj)
+		handler.StaticFS("/webui/", http.FS(webuiSimpleObj))
 	}
 
 	listener, err := net.Listen("tcp", "0.0.0.0:8888")
@@ -77,25 +76,13 @@ type webui struct {
 }
 
 // 静态资源被访问的核心逻辑
-func (w *webui) Open(name string) (http.File, error) {
+func (w *webui) Open(name string) (fs.File, error) {
 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
 		return nil, errors.New("http: invalid character in file path")
 	}
 	fullName := filepath.Join(w.path, filepath.FromSlash(path.Clean("/"+name)))
 	file, err := w.webuiEmbed.Open(fullName)
-	wf := &WebuiFile{
-		File: file,
-	}
-	return wf, err
-}
-
-type WebuiFile struct {
-	io.Seeker
-	fs.File
-}
-
-func (*WebuiFile) Readdir(count int) ([]fs.FileInfo, error) {
-	return nil, nil
+	return file, err
 }
 
 // Ant Design前端页面，需要该方式，实现刷新，访问到前端index.html
@@ -103,6 +90,6 @@ type webuiIndex struct {
 	webui *webui
 }
 
-func (w *webuiIndex) Open(name string) (http.File, error) {
+func (w *webuiIndex) Open(name string) (fs.File, error) {
 	return w.webui.Open("index.html")
 }
